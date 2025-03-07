@@ -1,0 +1,92 @@
+services:
+  # Traefik reverse proxy
+  traefik:
+    image: traefik:v2.10
+    restart: always
+    ports:
+      - '80:80'
+      - '8080:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/config:/etc/traefik
+    command:
+      - '--providers.docker=true'
+      - '--providers.docker.exposedbydefault=true'
+      # - '--providers.file.directory=/etc/traefik/dynamic'
+      - '--providers.file.watch=true'
+      - '--api.dashboard=true'
+      - '--api.insecure=true'
+      - '--entrypoints.web.address=:80'
+      - '--providers.docker.defaultrule=Host(`{{ normalize .Name }}.localhost`)'
+      - '--log.level=DEBUG'
+    networks:
+      - public
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik-dashboard.rule=Host(`traefik.localhost`)'
+      - 'traefik.http.routers.traefik-dashboard.service=api@internal'
+
+  postgres:
+    restart: on-failure
+    build: nodes/postgres
+    hostname: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_PASSWORD: db_pass
+    volumes:
+      - ./nodes/postgres:/app
+    networks:
+      - public
+
+  apinode:
+    restart: on-failure
+    build: nodes/task-api
+    hostname: apinode
+    ports:
+      - '4000:4000'
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_DATABASE_URL=postgres://postgres:db_pass@postgres:5432/postgres
+      - ALLOWED_ORIGINS=http://localhost:5173
+    volumes:
+      - ./nodes/task-api:/app
+      - /app/node_modules
+    networks:
+      - public
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.apinode.rule=Host(`apinode.localhost`)'
+      - 'traefik.http.routers.apinode.service=apinode'
+      - 'traefik.http.routers.apinode.entrypoints=web'
+      - 'traefik.http.services.apinode.loadbalancer.server.port=4000'
+
+  dashboardnode:
+    restart: on-failure
+    build: nodes/task-dashboard
+    hostname: dashboardnode
+    ports:
+      - '5173:5173'
+    depends_on:
+      - postgres
+    environment:
+      - API_ENDPOINT=http://localhost:4000/graphql
+    volumes:
+      - ./nodes/task-dashboard:/app
+      - /app/node_modules
+    networks:
+      - public
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.dashboardnode.rule=Host(`dashboardnode.localhost`)'
+      - 'traefik.http.routers.dashboardnode.service=dashboardnode'
+      - 'traefik.http.routers.dashboardnode.entrypoints=web'
+      - 'traefik.http.services.dashboardnode.loadbalancer.server.port=5173'
+
+networks:
+  public:
+    attachable: true
+    name: traefik
+  shared-network:
+    driver: bridge

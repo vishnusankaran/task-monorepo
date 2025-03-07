@@ -1,0 +1,6 @@
+[submodule "nodes/task-dashboard"]
+	path = nodes/task-dashboard
+	url = https://github.com/vishnusankaran/task-dashboard.git
+[submodule "nodes/task-api"]
+	path = nodes/task-api
+	url = https://github.com/vishnusankaran/task-api.git
