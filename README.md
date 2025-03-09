@@ -33,10 +33,9 @@ This is a monorepo which contains the frontend, backend and database for a simpl
 - React
 - TailwindCSS
 - ShadcnUI
-- ReactRouter v7
-- ReactQuery @Tanstack
 - ReactTable @Tanstack
 - URQL - GraphQL Client
+- ReactRouter v7
 
 #### API
 
